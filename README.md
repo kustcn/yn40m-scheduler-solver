@@ -1,7 +1,7 @@
 # Yunnan 40 m Radio Telescope Targets Scheduling based DQN
 
 [![Static Badge](https://img.shields.io/badge/Python-3.11-green)](https://www.python.org/)
-[![License](https://img.shields.io/badge/License-MIT-blue)](LICENSE)
+[![License](https://img.shields.io/badge/License-GPL%20v3-blue)](LICENSE)
 ![Powered by YN40M](https://img.shields.io/badge/Powered%20by-YN40m-orange.svg?style=flat&amp;colorA=E1523D&amp;colorB=007D8A)
 
 ## Dependencies
