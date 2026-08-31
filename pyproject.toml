@@ -1,0 +1,185 @@
+# ============================================================================
+# SPO MEI Demo - Python Project Configuration
+# ============================================================================
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+
+# ============================================================================
+# Project Metadata
+# ============================================================================
+
+[project]
+name = "yn40m-scheduler-solver"
+version = "20260831"
+description = "YN40m Scheduler Solver"
+readme = "README.md"
+requires-python = ">=3.11"
+
+authors = [
+    {name = "Shoulin Wei", email = "weishoulin@kust.edu.cn"},
+]
+
+maintainers = [
+    {name = "Shoulin Wei", email = "weishoulin@kust.edu.cn"},
+]
+
+keywords = [
+    "astronomy",
+    "astrophysics",
+    "YN40m",
+    "image-processing",
+    "scientific-computing",
+]
+
+classifiers = [
+    # Development Status
+    "Development Status :: 3 - Alpha",
+
+    # Intended Audience
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Developers",
+
+    # Operating System
+    "Operating System :: OS Independent",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS",
+    "Operating System :: Microsoft :: Windows",
+
+    # Programming Language
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Cython",
+
+    # Topic
+    "Topic :: Scientific/Engineering :: Astronomy",
+    "Topic :: Scientific/Engineering :: Physics",
+    "Topic :: Scientific/Engineering :: Image Processing",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+
+# ============================================================================
+# Dependencies
+# ============================================================================
+
+dependencies = [
+    "numpy>=1.26.4,<2.0",
+    "astropy>=6.0.0,<7.0",
+    "omegaconf==2.3.0",
+    "matplotlib>=3.5.0,<4.0",
+    "click>=8.0.0,<9.0",
+    "torch>=2.0.0",
+    "astroplan==0.10",
+    "tqdm==4.66.2"
+]
+
+[project.optional-dependencies]
+# Testing dependencies
+test = [
+    "pytest>=7.4.3",
+    "coverage>=7.6.1",
+    "pytest-cov>=5.0.0",
+    "pytest-html>=4.1.1",
+    "pytest-xdist>=3.0.0",  # parallel testing
+]
+
+# Build dependencies
+build = [
+    "build>=0.10.0",
+    "wheel>=0.40.0",
+    "setuptools>=61.0",
+]
+
+# Deployment dependencies
+deploy = [
+    "twine>=5.1.1",
+    "bumpver>=2025.1131",
+]
+
+# Development dependencies (includes all above)
+dev = [
+    # Test dependencies
+    "pytest>=7.4.3",
+    "coverage>=7.6.1",
+    "pytest-cov>=5.0.0",
+    "pytest-html>=4.1.1",
+    "pytest-xdist>=3.0.0",
+
+    # Build dependencies
+    "build>=0.10.0",
+    "wheel>=0.40.0",
+    "setuptools>=61.0",
+
+    # Deploy dependencies
+    "twine>=5.1.1",
+    "bumpver>=2025.1131",
+
+    # Code quality
+    "black>=23.0.0",
+    "isort>=5.12.0",
+    "flake8>=6.0.0",
+    "mypy>=1.5.0",
+]
+
+[project.scripts]
+yn40m-scheduler-solver = "yn40mss.cmd.entry:main"
+
+
+
+
+# ============================================================================
+# Tool Configuration - Setuptools
+# ============================================================================
+
+[tool.setuptools]
+packages = ["yn40mss"]
+include-package-data = true
+
+[tool.setuptools.package-data]
+yn40mss = [
+    "config/*",
+]
+
+[tool.setuptools.package-dir]
+"" = "src"
+
+# ============================================================================
+# Tool Configuration - Version Management
+# ============================================================================
+
+[tool.bumpver]
+current_version = "20260831"
+version_pattern = "YYYY0M0D[.PATCH]"
+commit_message = "Release {new_version}"
+commit = false
+tag = false
+push = false
+
+[tool.bumpver.file_patterns]
+"pyproject.toml" = [
+    'version = "{version}"',
+]
+"src/yn40mss/version.py" = [
+    '__version__ = "{version}"',
+]
+"Makefile" = [
+    'VERSION := {version}',
+]
+
+# ============================================================================
+# Tool Configuration - Code Quality
+# ============================================================================
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+line_length = 88
+known_first_party = ["yn40mss"]
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+ignore_missing_imports = true

@@ -1,0 +1,20 @@
+common:
+  IERS_data: /Users/wsl/data/astro/finals2000A.all
+  start_az: 240.0
+  start_el: 88.0
+  start_time: 2026-08-28 09:30:00
+  end_time: 2026-08-30 09:30:00
+  elevating_lim: 10.
+  elevating_max: 65.
+  slew_time: 6.4  # estimate slew time(unit: minute)
+  lat: 25.028  # unit: degree
+  lon: 102.796  # unit: degree
+  height: 1974  # unit: meter 
+  pressure: 0.77637  # unit: bar
+  timezone: Asia/Shanghai
+  observer_name: 40m Telescope
+  observer_description: 40m Radio Telescope on Kunming, Yunnan
+
+logging:
+  logfile: scheduler-dev.log
+  level: INFO

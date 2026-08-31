@@ -1,0 +1,100 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# CI/CD
+.gitlab-ci.yml
+.github
+.circleci
+
+# IDE / Editor
+.vscode
+.idea
+*.swp
+*.swo
+*~
+*.iml
+.DS_Store
+
+# Python
+__pycache__
+**/__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+develop-eggs/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+.installed.cfg
+MANIFEST
+*.manifest
+*.spec
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Virtual environments
+.venv
+venv/
+env/
+ENV/
+__pypackages__/
+
+# Testing / Coverage
+.pytest_cache/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+htmlcov/
+tests/
+
+# Type checking / Linting
+.mypy_cache/
+.ruff_cache/
+.flake8
+.coveragerc
+
+# Documentation
+docs/
+*.md
+!src/**/*.md
+LICENSE
+CHANGELOG.md
+README.md
+
+# Logs / Runtime
+*.log
+logs/
+tmp/
+temp/
+.tmp/
+
+# Configs (local)
+.env
+.env.*
+*.local
+
+# Misc
+*.DS_Store*
+Thumbs.db

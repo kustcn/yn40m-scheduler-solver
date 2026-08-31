@@ -1,0 +1,7 @@
+[run]
+source =
+    src
+omit =
+    tests/*
+    src/yn40mss/version.py
+    */__init__.py
