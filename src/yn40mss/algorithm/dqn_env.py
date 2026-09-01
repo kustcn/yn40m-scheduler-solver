@@ -6,7 +6,6 @@ from astropy.coordinates import EarthLocation, AltAz, SkyCoord
 from astropy.time import Time
 import astropy.units as u
 
-
 class TelescopeEnv:
     """望远镜观测调度强化学习环境(为 DQN 设计)
 
@@ -37,6 +36,7 @@ class TelescopeEnv:
                  grid_step=60.0,      # alt/az 预计算网格步长 (秒)
                  time_step=60.0,      # 时间推进最小步长 (秒)
                  priorities=None,             # 每目标科学优先级 (缺省全 1.0)
+                 fill_gap_set=None,   # fill_gap=1 目标集合(可填空闲的子集)
                  elevation_quality_weight=1.0):  # 仰角质量奖励权重 λ_el
         """
         targets: [{
@@ -60,7 +60,13 @@ class TelescopeEnv:
         self.slew_settle = slew_settle
         self.grid_step = grid_step
         self.time_step = time_step
-        self.priorities = list(priorities) if priorities is not None else [1.0] * len(targets)
+        self.priorities = (list(priorities) if priorities is not None
+                          else [1.0] * len(targets))
+        if len(self.priorities) != len(targets):
+            self.priorities = self.priorities[:len(targets)] + [1.0] * (len(targets) - len(self.priorities))
+        self.fill_gap_set = set(fill_gap_set) if fill_gap_set is not None else set(
+            i for i, t in enumerate(targets) if t.get('fill_gap', False)
+        )
         self.elevation_quality_weight = float(elevation_quality_weight)
 
         self.n_targets = len(targets)
@@ -77,6 +83,9 @@ class TelescopeEnv:
         self.schedule = []
         self.altaz = (self.init_alt, self.init_az)
         self.last_target_idx = None
+        # fill_gap 集合: 这些目标可在必排全部编排完成后用于填空闲
+        # 默认全部都是必排 (fill_gap=False); 由 do_schedule 通过环境入口传入
+        self.fill_gap_set = set()
 
     # ====================== 预计算 ======================
     def _precompute_altaz_grid(self):

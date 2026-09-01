@@ -29,13 +29,14 @@ def get_obs_site(cfg):
     return site, observer
 
 class Target(object):
-    def __init__(self, name, ra, dec, obs_time, site) -> None:
+    def __init__(self, name, ra, dec, obs_time, site, fill_gap=False) -> None:
         super(Target).__init__()
         self.name = name
         self.ra = ra
         self.dec = dec
         self.obs_time = obs_time  # observational time
         self.site = site
+        self.fill_gap = fill_gap
         self.sky_coord = SkyCoord(ra, dec)  # FixedTarget in astropy 
         self.fixed_target = FixedTarget(name=self.name, coord=self.sky_coord)  # FixedTarget in astroplan
 
@@ -140,7 +141,8 @@ def load_targets(targets_data, site) -> list[Target]:
             decs = t["dec"].split(" ")
             dec = decs[0] + 'd' + decs[1] + 'm' + decs[2] + 's'
         obs_time = float(t["obs_time"])
-        target = Target(t["src"], ra, dec, obs_time, site)
+        fill_gap = t.get("fill_gap", "0") == "1"
+        target = Target(t["src"], ra, dec, obs_time, site, fill_gap)
         targets.append(target)
     return targets
 

@@ -3,7 +3,7 @@ common:
   start_az: 240.0
   start_el: 88.0
   start_time: 2026-08-28 09:30:00
-  end_time: 2026-08-30 09:30:00
+  end_time: 2026-08-30 23:30:00
   elevating_lim: 10.
   elevating_max: 65.
   slew_time: 6.4  # estimate slew time(unit: minute)

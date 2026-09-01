@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta
+
 import numpy as np
 import torch
 import torch.optim as optim
@@ -9,7 +11,6 @@ import pickle
 import logging
 from astropy.time import Time
 from typing import List, Tuple, Optional
-from datetime import datetime, timedelta
 
 from ..core.utils import iers_init, get_obs_site, cal_avail_times, load_targets, minutes
 from .dqn_env import TelescopeEnv
@@ -250,9 +251,9 @@ def _project_root() -> str:
 
 
 def _load_or_compute_windows(targets, observer, time_range, cfg) -> dict:
-    """计算每个目标的可观测窗口, 返回 {name: [(start_sec, end_sec)]}
+    """计算(或从缓存加载)每个目标的可观测窗口, 返回 {name: [(start_sec, end_sec)]}
 
-    缓存按调度起止时间匹配(±60s);
+    缓存按调度起止时间匹配(±60s); 旧版无元数据缓存一律重算并改写为新格式
     """
     start_unix, end_unix = float(time_range[0].unix), float(time_range[1].unix)
 
@@ -262,6 +263,7 @@ def _load_or_compute_windows(targets, observer, time_range, cfg) -> dict:
         name: [(float(s.unix) - start_unix, float(e.unix) - start_unix) for s, e in wins]
         for name, wins in avail_times.items()
     }
+
     return windows
 
 
@@ -323,8 +325,8 @@ def _print_schedule_stats(entries, n_targets: int, tag: str) -> None:
 # ====================== 训练与调度入口 ======================
 def do_schedule(targets, cfg, start_time, end_time, start_az, start_el,
                 is_interrupt=False, model_path: Optional[str] = None,
-                save_model: bool = False, test_mode: bool = False,
-                priorities=None, elevation_quality_weight: float = 1.0, schedule_results_file: str = "schedule_results.json"):
+                save_model: bool = True, test_mode: bool = False,
+                priorities=None, elevation_quality_weight: float = 1.0, schedule_results_file: str="schedule_results.json") -> list:
     """使用 DQN 算法进行望远镜观测调度
 
     Args:
@@ -354,8 +356,9 @@ def do_schedule(targets, cfg, start_time, end_time, start_az, start_el,
     t0_unix = float(time_range[0].unix)
     total_sec = float(time_range[1].unix - time_range[0].unix)
 
-    if minutes(time_range[0], time_range[1]) < sum([t.obs_time for t in named_targets]):
-        raise Exception("Warning: total observation time exceeds scheduling window")
+    if minutes(time_range[0], time_range[1]) < sum(t.obs_time for t in named_targets):
+        logging.error("Total observation time exceeds scheduling window")
+        return []
 
     windows = _load_or_compute_windows(named_targets, observer, time_range, cfg)
     env_targets = [
@@ -364,6 +367,7 @@ def do_schedule(targets, cfg, start_time, end_time, start_az, start_el,
             'dec': t.sky_coord.dec.degree,
             'time_windows': windows[t.name],
             'duration': t.obs_time * 60.0,
+            'fill_gap': t.fill_gap,
         }
         for t in named_targets
     ]
@@ -374,7 +378,6 @@ def do_schedule(targets, cfg, start_time, end_time, start_az, start_el,
         init_altaz=(float(start_el), float(start_az)),
         start_time=t0_unix,
         obs_duration=total_sec,
-        priorities=priorities,
         elevation_quality_weight=elevation_quality_weight,
     )
 
@@ -471,6 +474,19 @@ def do_schedule(targets, cfg, start_time, end_time, start_az, start_el,
         if callable(is_interrupt) and is_interrupt():
             break
 
+    # 训练曲线持久化(供论文绘图与复现)
+    # try:
+    #     import json
+    #     metrics_path = os.path.join(_project_root(), 'dqn_training_metrics.json')
+    #     with open(metrics_path, 'w', encoding='utf-8') as f:
+    #         json.dump({'test_mode': test_mode,
+    #                    'attempts': attempts,
+    #                    'episodes_per_attempt': episodes_per_attempt,
+    #                    'records': metrics}, f, ensure_ascii=False)
+    #     logging.info(f"Training metrics saved to {metrics_path} ({len(metrics)} episodes)")
+    # except Exception as e:
+    #     logging.warning(f"Failed to save training metrics: {e}")
+
     logging.info(f"Training finished in {time.time() - train_started:.1f}s, "
                  f"best during training: {best_key[0]}/{n_targets} targets")
 
@@ -512,17 +528,48 @@ def do_schedule(targets, cfg, start_time, end_time, start_az, start_el,
     final_key = _schedule_key(final_entries)
     _print_schedule_stats(final_entries, n_targets, "final")
 
+    # errors = _validate_entries(env, final_entries)
+    # if errors:
+    #     logging.warning(f"Schedule validation issues ({len(errors)}): {errors[:5]}")
+    # else:
+    #     logging.info("Schedule validation passed: windows/slew/overlap all feasible")
+
+    # if save_model and final_key > best_key:
+    #     best_entries, best_key = final_entries, final_key
+    #     save_agent(agent, os.path.join(model_save_dir, 'best_model.pt'))
+
+    # ====================== fill_gap 阶段: 所有 53 目标完成编排后, 再用 fill_gap=1 目标重复观测填满空闲 ======================
+    # 语义: 所有目标都必须被编排 (主调度 100% 完成), 之后若仍有空闲时段,
+    # 用 fill_gap=1 目标重复插入以提升时间利用率. 同一 fill_gap 目标可多次插入.
+    fg_indices = [i for i, t in enumerate(env_targets) if t.get('fill_gap', False)]
+    if fg_indices:
+        added_total = 0
+        # 多次轮询, 每次扫描所有 fill_gap 目标, 尝试插入仍存空闲的窗口.
+        # 每轮至少插入一个即继续, 否则跳出(已无可填空隙).
+        max_rounds = 50
+        for round_idx in range(max_rounds):
+            round_added = 0
+            # 按 RA 顺序遍历 fill_gap 候选, 插得进则加 1 跳出此候选
+            for idx in fg_indices:
+                # 使用同一 idx 可复用(重复观测)
+                if env._try_insert(final_entries, idx):
+                    round_added += 1
+                    added_total += 1
+            if round_added == 0:
+                break
+        if added_total > 0:
+            final_entries.sort(key=lambda e: e['start_time'])
+            logging.info(f"fill_gap stage: inserted {added_total} extra fill_gap observations "
+                         f"into idle gaps over {round_idx + 1} round(s)")
+    
     errors = _validate_entries(env, final_entries)
     if errors:
         logging.warning(f"Schedule validation issues ({len(errors)}): {errors[:5]}")
     else:
         logging.info("Schedule validation passed: windows/slew/overlap all feasible")
 
-    if save_model and final_key > best_key:
-        best_entries, best_key = final_entries, final_key
-        save_agent(agent, os.path.join(model_save_dir, 'best_model.pt'))
-
     # 组织输出(去掉内部字段, 补充目标名)
+    start_datetime = datetime.strptime(start_time, "%Y-%m-%d %H:%M:%S")
     recs = []
     for e in sorted(final_entries, key=lambda x: x['start_time']):
         recs.append({
@@ -533,13 +580,10 @@ def do_schedule(targets, cfg, start_time, end_time, start_az, start_el,
             'end_time': round(e['end_time'], 2),
             'duration': round(e['duration'], 2),
             'elevation': round(e.get('el_mean', 0.0), 2),
+            'start_time_str': (start_datetime + timedelta(minutes=e['start_time'])).strftime("%Y-%m-%d %H:%M:%S"),
+            'end_time_str': (start_datetime + timedelta(minutes=e['end_time'])).strftime("%Y-%m-%d %H:%M:%S")
         })
 
-    start_datetime = datetime.strptime(start_time, "%Y-%m-%d %H:%M:%S")
-
-    for rec in recs:
-        rec['start_time_str'] = (start_datetime + timedelta(minutes=rec['start_time'])).strftime("%Y-%m-%d %H:%M:%S")
-        rec['end_time_str'] = (start_datetime + timedelta(minutes=rec['end_time'])).strftime("%Y-%m-%d %H:%M:%S")
     # 持久化调度结果, 便于下游(服务/可视化)使用
     try:
         import json
@@ -556,9 +600,8 @@ def do_schedule(targets, cfg, start_time, end_time, start_az, start_el,
                 'mean_elevation_deg': round(quality['mean_elevation'], 2),
                 'records': recs,
             }, f, ensure_ascii=False, indent=2)
-        logging.info(f"Schedule results saved to {schedule_results_file}")
+        logging.info(f"Schedule results saved to {schedule_results_file}, {len(recs)} records")
     except Exception as e:
         logging.warning(f"Failed to save schedule results: {e}")
 
     return recs
-

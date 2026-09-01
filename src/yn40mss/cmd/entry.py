@@ -72,7 +72,7 @@ def schedule(
 
         recs = dqn.do_schedule(targets, cfg, start_time, end_time, start_az, start_el,
                                schedule_results_file=results_file)
-        print('dqn results:', recs)
+        logging.info('dqn results: %d records', len(recs))
 
         # 获取调度时间范围
         print_scheduling_summary(start_time, recs, targets)
