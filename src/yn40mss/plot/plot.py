@@ -1,7 +1,6 @@
-"""调度结果绘图模块(出版级样式)。
+"""调度结果绘图模块。
 
-将调度结果 (schedule_results.json) 绘制为 5 幅图, 按 Nature 系出版规范输出
-(PDF + 高分辨率 PNG, 统一色彩族, 每个面板服务一个结论):
+将调度结果 (schedule_results.json) 绘制为 5 幅图:
   1. fig1_slew_time.png                : 每次换源时间(单面板柱状图), 越限段标红, 叠加预估上限参考线
   2. fig2_start_end_el.png             : 每段观测开始/结束仰角(单面板双序列), 叠加限位带
   3. fig3_el_limit_check.png           : a. 段内相对时间 / b. 相对起始的绝对时间, 源仰角轨迹 + 限位线
