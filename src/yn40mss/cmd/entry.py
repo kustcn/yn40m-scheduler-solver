@@ -11,6 +11,7 @@ from yn40mss.config import DEFAULT_CONFIG_PATH
 from yn40mss.core.logging import setup_logging
 from yn40mss.core.utils import load_config, print_scheduling_summary, check_schedule_overlaps, plot_schedule_timeline
 from yn40mss.plot import plot_schedule_results
+from yn40mss.verify import verify_schedule
 
 
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})
@@ -97,6 +98,66 @@ def schedule(
         exit_code = 1
 
     sys.exit(exit_code)
+
+
+@main.command()
+@click.option(
+    "--schedule-results",
+    "schedule_results",
+    required=False,
+    default="schedule_results.json",
+    type=str,
+    help="Path to the schedule results JSON to verify.",
+)
+@click.option(
+    "--targets",
+    "targets_file",
+    required=False,
+    default=None,
+    help="Path to the target table JSON (default: tests/targets.json).",
+)
+@click.option(
+    "--config",
+    "config_file",
+    required=False,
+    default=None,
+    help="Path to the site config YAML (default: yn40mss default.yaml).",
+)
+@click.option(
+    "--use-cache",
+    "use_cache",
+    is_flag=True,
+    default=False,
+    help="Reuse target_available_times.pkl if the time range matches "
+         "(default: recompute visibility windows independently).",
+)
+@click.option(
+    "--no-slew-check",
+    "no_slew_check",
+    is_flag=True,
+    default=False,
+    help="Skip the adjacent-pointing slew feasibility check.",
+)
+def verify(
+    schedule_results: str,
+    targets_file: str,
+    config_file: str,
+    use_cache: bool,
+    no_slew_check: bool,
+) -> None:
+    """Verify a schedule: coverage, visibility windows, overlaps, slew."""
+    try:
+        report = verify_schedule(
+            schedule_results_file=schedule_results,
+            targets_file=targets_file,
+            config_file=config_file,
+            check_slew=not no_slew_check,
+            use_cached_windows=use_cache,
+        )
+        sys.exit(0 if report["ok"] else 1)
+    except Exception:
+        click.echo(f"{traceback.format_exc()}")
+        sys.exit(2)
 
 
 @main.command()

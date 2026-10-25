@@ -1,5 +1,15 @@
 # Changelog
 
+## [20261025-3] - 2026-10-25-3
+
+- add independent schedule verifier: new 'verify' CLI subcommand and
+  yn40mss.verify module (coverage / visibility windows recomputed from
+  scratch / zero overlaps / record consistency / adjacent-pointing slew
+  feasibility), structured report + process exit code for CI
+- tests/test_verify.py: positive case on the real schedule plus three
+  negative cases (missing target, overlapping records, out-of-window
+  record) - 4 passed
+
 ## [20261025-2] - 2026-10-25-2
 
 - plot: add fig6_sky_trajectory - telescope pointing trajectory on the

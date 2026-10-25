@@ -81,6 +81,17 @@ yn40m-scheduler-solver --version
 | `-c`, `--config-file` | ✅ | Configuration file (YAML); see [default.yaml](src/yn40mss/config/default.yaml) |
 | `-t`, `--targets-file` | ✅ | Target list to be scheduled (JSON) |
 
+### verify a schedule
+
+  yn40m-scheduler-solver verify --schedule-results schedule_results.json --targets tests/targets.json
+
+Independently re-checks a schedule: full target coverage, every observation
+inside an independently recomputed visibility window (airmass + elevation
+limits), zero pairwise overlaps, record consistency, and adjacent-pointing
+slew feasibility. Exit code 0 = all checks passed, 1 = violations found.
+(`--use-cache` reuses `target_available_times.pkl` when the time range
+matches; `--no-slew-check` skips the slew check.)
+
 ### scheduling result plotting
   
   yn40m-scheduler-solver plot -- schedule-results --config config.yaml --targets targets.json --save-dir ./out 
