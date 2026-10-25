@@ -332,11 +332,16 @@ def print_scheduling_summary(start_time, schedule_results, all_targets):
     start_datetime = datetime.strptime(start_time, "%Y-%m-%d %H:%M:%S")
 
     total_targets = len(all_targets)
-    scheduled_targets = len(schedule_results) if schedule_results else 0
+    unique_scheduled = len({obs['target'] for obs in schedule_results}) if schedule_results else 0
+    total_records = len(schedule_results) if schedule_results else 0
+    fill_gap_extra = max(total_records - unique_scheduled, 0)
 
     print(f"Total targets: {total_targets}")
-    print(f"Successfully scheduled: {scheduled_targets}")
-    print(f"Scheduling success rate: {(scheduled_targets / total_targets) * 100:.1f}%")
+    print(f"Successfully scheduled (unique targets): {unique_scheduled}")
+    if fill_gap_extra:
+        print(f"Fill-gap extra observations: {fill_gap_extra} "
+              f"(total records: {total_records})")
+    print(f"Scheduling success rate: {(unique_scheduled / total_targets) * 100:.1f}%")
 
     if schedule_results:
         total_obs_time = sum(obs['duration'] for obs in schedule_results)

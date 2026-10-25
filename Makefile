@@ -1,5 +1,5 @@
 PROJECT_NAME := yn40m-scheduler-solver
-VERSION := 20260831
+VERSION := 20261025
 
 ifneq (,$(wildcard .local/.env))
 $(info Using local .env file)

@@ -207,3 +207,8 @@ schedule_results.json
 telescope_schedule.png
 
 .codebuddy
+# v2 runtime artifacts
+models/
+*.pkl
+dqn_training_metrics.json
+tests/schedule_results.json

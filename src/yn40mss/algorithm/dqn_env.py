@@ -502,7 +502,8 @@ class TelescopeEnv:
             return {'coverage': 0, 'weighted_coverage': 0.0, 'total_obs_min': 0.0,
                     'total_slew_min': 0.0, 'mean_elevation': 0.0}
         total_p = float(sum(self.priorities))
-        done_p = float(sum(self.priorities[e['target_idx']] for e in entries))
+        # 按不同目标计一次: fill-gap 重复观测不重复累计(覆盖率上限 1.0)
+        done_p = float(sum(self.priorities[i] for i in {e['target_idx'] for e in entries}))
         total_obs = float(sum(e['duration'] for e in entries))
         total_slew = float(sum(e.get('slew_time', 0.0) for e in entries))
         mean_el = (sum(e['duration'] * e.get('el_mean', 0.0) for e in entries) / total_obs
