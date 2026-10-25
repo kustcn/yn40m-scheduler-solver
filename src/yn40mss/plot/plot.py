@@ -1,11 +1,13 @@
 """调度结果绘图模块。
 
-将调度结果 (schedule_results.json) 绘制为 5 幅图:
+将调度结果 (schedule_results.json) 绘制为 6 幅图:
   1. fig1_slew_time.png                : 每次换源时间(单面板柱状图), 越限段标红, 叠加预估上限参考线
   2. fig2_start_end_el.png             : 每段观测开始/结束仰角(单面板双序列), 叠加限位带
   3. fig3_el_limit_check.png           : a. 段内相对时间 / b. 相对起始的绝对时间, 源仰角轨迹 + 限位线
   4. fig4_unique_source_coverage.png   : 累计观测时长 vs 已覆盖的不同源数(step 曲线, hero 面板)
   5. fig5_az_el_strip.png              : 每段观测起始点在展开 az 轴上的 (az, el) 轨迹, 限位带 + 方向箭头
+  6. fig6_sky_trajectory.png           : 望远镜指向在天球(alt-az 极坐标)上的轨迹: 实心点=必排观测,
+                                          空心环=fill-gap 额外观测, 箭头=调度先后, 限位带 + 顺序色标
 
 用法:
   # 作为模块导入
@@ -33,6 +35,7 @@ if _SRC_ROOT not in sys.path:
     sys.path.insert(0, _SRC_ROOT)
 
 import matplotlib.pyplot as plt
+from matplotlib.colors import LinearSegmentedColormap
 
 from yn40mss.config import DEFAULT_CONFIG_PATH
 from yn40mss.core.utils import load_config, get_obs_site, PointModel, iers_init
@@ -157,7 +160,7 @@ def plot_schedule_results(
     show=True,
     dpi=300,
 ):
-    """绘制调度结果 5 幅图(出版级样式), 支持保存为 PDF/PNG.
+    """绘制调度结果 6 幅图(出版级样式), 支持保存为 PDF/PNG.
 
     Parameters
     ----------
@@ -180,7 +183,7 @@ def plot_schedule_results(
     Returns
     -------
     dict
-        {"figs": [fig1, ..., fig5], "paths": [主文件路径列表(PNG), 若无保存则为 []]}
+        {"figs": [fig1, ..., fig6], "paths": [主文件路径列表(PNG), 若无保存则为 []]}
     """
     # ---------- 配置 / 站点 / IERS ----------
     cfg_path = config_file or DEFAULT_CONFIG_PATH
@@ -410,8 +413,118 @@ def plot_schedule_results(
     _light_grid(ax_strip)
     _finish(fig5)
 
+    # ---------- 图6: 天球(alt-az 极坐标)上的望远镜指向轨迹 ----------
+    # 类似论文图2: 半径=仰角(天顶在中心), 角度=方位角(北在上, 顺时针, 望远镜惯例);
+    # 实心点 = 必排观测, 空心环 = fill-gap 额外观测; 箭头连线给出调度先后,
+    # 颜色沿调度顺序由主蓝渐变到信号红; 叠加望远镜仰角限位带.
+    n_rec = len(records)
+    order = np.arange(n_rec, dtype=float)
+    order_norm = order / max(n_rec - 1, 1)
+    cmap_sched = LinearSegmentedColormap.from_list(
+        "sched_order", [_C_MAIN, _C_SEC, _C_RED])
+    pt_colors = cmap_sched(order_norm)
+
+    az_rad = np.deg2rad(az_starts)          # 图5 已算好 0~360 起始方位角
+    el_pts = el_starts
+    is_fill = np.array([bool(r.get("fill_gap", False)) for r in records])
+
+    fig6 = plt.figure(6, figsize=(6.4, 4.8))
+    axp = fig6.add_subplot(111, projection="polar")
+    axp.set_theta_zero_location("N")        # 北在上
+    axp.set_theta_direction(-1)             # 顺时针(方位角增大向东)
+    axp.set_ylim(0.0, 90.0)
+    axp.set_yticks([0, 15, 30, 45, 60, 75, 90])
+    axp.set_yticklabels(["0\u00b0", "15\u00b0", "30\u00b0", "45\u00b0",
+                         "60\u00b0", "75\u00b0", "90\u00b0"], fontsize=6)
+    axp.set_xticks(np.deg2rad(np.arange(0.0, 360.0, 30.0)))
+    axp.set_xticklabels(["N", "30\u00b0", "60\u00b0", "E", "120\u00b0", "150\u00b0",
+                         "S", "210\u00b0", "240\u00b0", "W", "300\u00b0", "330\u00b0"],
+                        fontsize=7)
+    axp.grid(True, ls=":", lw=0.5, color="0.85")
+
+    # 限位带: 允许区浅灰底, 界限虚线(与 fig2/3/5 的 _constraint_band 同语义)
+    theta_ring = np.linspace(0.0, 2.0 * np.pi, 361)
+    axp.fill_between(theta_ring, el_lim, el_max, color="0.93", zorder=0)
+    axp.plot(theta_ring, np.full_like(theta_ring, el_lim),
+             ls="--", lw=0.9, color=_C_NEU_DARK, zorder=1)
+    axp.plot(theta_ring, np.full_like(theta_ring, el_max),
+             ls="--", lw=0.9, color=_C_NEU_DARK, zorder=1)
+
+    # 调度先后箭头连线(跨 0/360 边界在中间方位角处拆为两段, 避免穿越中心)
+    for i in range(n_rec - 1):
+        a0, e0 = az_starts[i], el_pts[i]
+        a1, e1 = az_starts[i + 1], el_pts[i + 1]
+        col = cmap_sched((order_norm[i] + order_norm[i + 1]) / 2.0)
+        segs = []
+        if abs(a1 - a0) > 180.0:
+            mid_az = (a0 + a1 + 360.0) / 2.0 if a1 < a0 else (a0 + a1 - 360.0) / 2.0
+            mid_az %= 360.0
+            mid_el = 0.5 * (e0 + e1)
+            segs.append(((np.deg2rad(a0), e0), (np.deg2rad(mid_az), mid_el)))
+            segs.append(((np.deg2rad(mid_az), mid_el), (np.deg2rad(a1), e1)))
+        else:
+            segs.append(((np.deg2rad(a0), e0), (np.deg2rad(a1), e1)))
+        for (p0, p1) in segs:
+            axp.annotate(
+                "", xy=p1, xytext=p0,
+                arrowprops=dict(arrowstyle="-|>", color=col, lw=0.8,
+                                mutation_scale=7, shrinkA=1.5, shrinkB=3.5),
+                zorder=2,
+            )
+
+    # 观测点: 必排=实心圆, fill-gap 额外=空心环; 点径首尾稍大突出起止
+    sizes = np.full(n_rec, 9.0)
+    head_tail = sorted(list(range(min(3, n_rec))) + list(range(max(0, n_rec - 3), n_rec)))
+    for k in head_tail:
+        sizes[k] = 26.0 - 5.0 * (k % 3)
+    axp.scatter(az_rad[~is_fill], el_pts[~is_fill], s=sizes[~is_fill],
+                c=pt_colors[~is_fill], edgecolors="black", linewidths=0.3,
+                alpha=0.95, zorder=3,
+                label=f"mandatory ({int((~is_fill).sum())})")
+    if is_fill.any():
+        axp.scatter(az_rad[is_fill], el_pts[is_fill], s=sizes[is_fill] * 1.5,
+                    facecolors="none", edgecolors=pt_colors[is_fill],
+                    linewidths=1.1, alpha=0.95, zorder=3,
+                    label=f"fill-gap extra ({int(is_fill.sum())})")
+
+    # 首/末观测: 双环高亮 + 文本标签
+    axp.scatter([az_rad[0]], [el_pts[0]], s=150, facecolors="none",
+                edgecolors=pt_colors[0], linewidths=1.6, zorder=4)
+    axp.scatter([az_rad[-1]], [el_pts[-1]], s=150, facecolors="none",
+                edgecolors=pt_colors[-1], linewidths=1.6, zorder=4)
+    axp.text(az_rad[0], el_pts[0] + 4.0, "start (1)", fontsize=6.5,
+             ha="center", va="bottom", fontweight="bold", zorder=5,
+             bbox=dict(boxstyle="round,pad=0.15", fc="white", ec=_C_MAIN, lw=0.5, alpha=0.9))
+    axp.text(az_rad[-1], el_pts[-1] + 4.0, f"end ({n_rec})", fontsize=6.5,
+             ha="center", va="bottom", fontweight="bold", zorder=5,
+             bbox=dict(boxstyle="round,pad=0.15", fc="white", ec=_C_RED, lw=0.5, alpha=0.9))
+
+    # 顺序色标(水平, 放在极坐标图下方)
+    sm = plt.cm.ScalarMappable(cmap=cmap_sched,
+                               norm=plt.Normalize(vmin=1, vmax=n_rec))
+    sm.set_array([])
+    cbar6 = fig6.colorbar(sm, ax=axp, fraction=0.04, pad=0.08,
+                          orientation="horizontal")
+    cbar6.set_label("Observation order", fontsize=7)
+    cbar6.ax.tick_params(labelsize=6)
+
+    # 统计 inset: 唯一源 / fill-gap 额外 / 总观测 / 利用率
+    unique_names = {r["target"] for r in records}
+    total_obs_min = sum(float(r["duration"]) for r in records)
+    window_min = float((Time(data["end_time"]) - Time(data["start_time"]))
+                       .to(u.min).value)
+    util_pct = 100.0 * total_obs_min / window_min if window_min > 0 else 0.0
+    axp.text(0.02, 0.03,
+             f"{len(unique_names)} unique targets"
+             + (f"\n+{len(records) - len(unique_names)} fill-gap extras" if len(records) > len(unique_names) else "")
+             + f"\n{total_obs_min:.0f} min obs \u00b7 {util_pct:.1f}% utilization",
+             transform=axp.transAxes, ha="left", va="bottom", fontsize=7,
+             bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="0.7", lw=0.5, alpha=0.9))
+    axp.legend(loc="upper left", bbox_to_anchor=(-0.10, 1.12), fontsize=7)
+    _finish(fig6)
+
     # ---------- 输出: 保存(SVG/PDF/TIFF/PNG) / 显示 ----------
-    figs = [fig1, fig2, fig3, fig4, fig5]
+    figs = [fig1, fig2, fig3, fig4, fig5, fig6]
     paths = []
     if save_dir:
         os.makedirs(save_dir, exist_ok=True)
@@ -421,6 +534,7 @@ def plot_schedule_results(
             "fig3_el_limit_check",
             "fig4_unique_source_coverage",
             "fig5_az_el_strip",
+            "fig6_sky_trajectory",
         ]
         for fig, name in zip(figs, names):
             base = os.path.join(save_dir, name)
@@ -446,7 +560,7 @@ def main(argv=None):
     parser.add_argument("--config", default=None,
                         help="path to site config YAML (default: yn40mss default.yaml)")
     parser.add_argument("--save-dir", default=None,
-                        help="directory to save figures (fig1..fig5_* in pdf/png); skip saving if omitted")
+                        help="directory to save figures (fig1..fig6_* in pdf/png); skip saving if omitted")
     parser.add_argument("--no-show", action="store_true", help="do not pop up figures")
     parser.add_argument("--dpi", type=int, default=300, help="PNG resolution (default: 300)")
     args = parser.parse_args(argv)

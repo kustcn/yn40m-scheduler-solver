@@ -1,5 +1,13 @@
 # Changelog
 
+## [20261025-2] - 2026-10-25-2
+
+- plot: add fig6_sky_trajectory - telescope pointing trajectory on the
+  local alt-az polar diagram (filled dots = mandatory observations,
+  open rings = fill-gap extras, arrows = schedule order with a
+  blue-to-red order colorbar, elevation limit band, start/end markers,
+  coverage/utilization inset)
+
 ## [20261025] - 2026-10-25
 
 - Scheduler core upgraded to the v2 pipeline: adaptive large neighborhood
