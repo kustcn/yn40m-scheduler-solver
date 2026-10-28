@@ -12,7 +12,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "yn40m-scheduler-solver"
-version = "20260831"
+version = "20261028"
 description = "YN40m Scheduler Solver"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -150,7 +150,7 @@ yn40mss = [
 # ============================================================================
 
 [tool.bumpver]
-current_version = "20260831"
+current_version = "20261028"
 version_pattern = "YYYY0M0D[.PATCH]"
 commit_message = "Release {new_version}"
 commit = false
