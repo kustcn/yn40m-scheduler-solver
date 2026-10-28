@@ -1,24 +1,16 @@
 # Yunnan 40 m Radio Telescope Targets Scheduling based DQN
 
-Short-term observation scheduling for the Yunnan 40 m radio telescope with a
-dueling deep Q-network and an adaptive large neighborhood search (ALNS):
-
-- **RL layer** - a dueling attention DQN (prioritized replay, double
-  Q-learning, soft target updates) learns to cover every mandatory target
-  inside its visibility windows.
-- **Search layer** - an ALNS with four destroy operators selected by recent
-  success rates and threshold-annealing acceptance refines a portfolio of
-  candidate schedules; its recreate step also re-inserts *fill-gap
-  eligible* sources into idle time, so the search optimizes total
-  observing time directly.
-- On the bundled 53-target, 62 hr example the pipeline covers all
-  mandatory targets and fills idle time with ~20+ extra fill-gap
-  observations (≈93-96% time utilization), with zero overlaps.
-
-
 [![Static Badge](https://img.shields.io/badge/Python-3.11-green)](https://www.python.org/)
 [![License](https://img.shields.io/badge/License-GPL%20v3-blue)](LICENSE)
 ![Powered by YN40M](https://img.shields.io/badge/Powered%20by-YN40m-orange.svg?style=flat&amp;colorA=E1523D&amp;colorB=007D8A)
+
+Short-term observation scheduling for the Yunnan 40 m radio telescope with a dueling deep Q-network and an adaptive large neighborhood search (ALNS):
+
+- **RL layer** - a dueling attention DQN (prioritized replay, double Q-learning, soft target updates) learns to cover every mandatory target inside its visibility windows.
+- **Search layer** - an ALNS with four destroy operators selected by recent success rates and threshold-annealing acceptance refines a portfolio of candidate schedules; its recreate step also re-inserts *fill-gap eligible* sources into idle time, so the search optimizes total observing time directly.
+- On the bundled 53-target, 62 hr example the pipeline covers all mandatory targets and fills idle time with ~20+ extra fill-gap observations (≈93-96% time utilization), with zero overlaps.
+
+<img src="res/fig_arch.png" width="100%" alt="architecture" title="architecture">
 
 ## Dependencies
 
@@ -102,6 +94,8 @@ matches; `--no-slew-check` skips the slew check.)
 | `--config` | ✅ | Configuration file (YAML); see [default.yaml](src/yn40mss/config/default.yaml) |
 | `--targets` | ✅ | Target list to be scheduled (JSON) |
 | `--save-dir` | ✅ | Directory to save the plot |
+
+<img src="res/fig_sky_trajectory.png" width="50%" alt="result" title="result" align="center">
 
 ## Citation
 ```
