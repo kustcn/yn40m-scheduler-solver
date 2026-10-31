@@ -1,15 +1,12 @@
-# -*- coding: utf-8 -*-
-"""端到端调度测试(v2 管线): 必排全覆盖 + fill-gap 填闲 + 零重叠
-
-快速模式(test_mode=True)平衡 CI 时长; 全量验证见 README 的 CLI 用法。
-"""
 import json
+import logging
 import os
 import unittest
 
 from yn40mss.algorithm import dqn
-from yn40mss.core.utils import load_config
 from yn40mss.config import DEFAULT_CONFIG_PATH
+from yn40mss.core.logging import setup_logging, log_level_str_to_int
+from yn40mss.core.utils import load_config
 
 TARGETS_FILE = os.path.join(os.path.dirname(__file__), "targets.json")
 
@@ -19,7 +16,7 @@ class ScheduleTestCase(unittest.TestCase):
     def test_schedule_full_coverage_and_fill_gap(self):
         cfg = load_config(DEFAULT_CONFIG_PATH)
         targets = json.load(open(TARGETS_FILE, "r", encoding="utf-8"))
-
+        setup_logging(logfile=cfg.logging.logfile, log_level=log_level_str_to_int(cfg.logging.level))
         recs = dqn.do_schedule(
             targets, cfg,
             cfg.common.start_time, cfg.common.end_time,

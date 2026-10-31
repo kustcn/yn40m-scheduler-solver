@@ -1,19 +1,3 @@
-# -*- coding: utf-8 -*-
-"""verify_schedule 单元测试: 阳性(真实 v2 结果) + 阴性(篡改记录必须被抓出).
-
-窗口重算较慢(约 1.5 min); 阴性用例用 --use-cache? 不, 独立重算一次后
-monkeypatch 缓存? 简化: 阳性用例做全量验证(独立重算), 阴性用例复用
-相同窗口结果——把 verify_schedule 拆两步太繁, 直接允许阴性用例也走
-完整重算但用 pytest fixture scope=session 只跑一次完整验证, 阴性用例
-通过篡改 base 数据 + 复用缓存 pkl(第一次跑后已写? verify 不写缓存)。
-
-务实方案: 阳性全量一次; 阴性三条各自篡改 records 后调用 verify_schedule
-并传 use_cached_windows=True(首次阳性跑完后调度目录已有 target_available_times.pkl,
-时间范围匹配即可秒级复用)。CI 中 tests 先跑 test_schedule(生成 pkl)?顺序不定。
-更稳: 阴性用例检查的项(coverage/overlap/consistency)不依赖窗口重算的精确值,
-但 verify_schedule 总会重算。为控时长, 阴性统一 use_cached_windows=True 且
-本地仓库已带 62h 的 pkl(调度验证时生成); 若 pkl 不匹配则退化为重算, 仍正确。
-"""
 import copy
 import json
 import os

@@ -1,16 +1,18 @@
-import time
-from tqdm import tqdm
 import math
-import numpy as np
+import time
 from datetime import datetime, timedelta
+
 import astropy.units as u
-from astropy.coordinates import EarthLocation, SkyCoord, AltAz
-from astroplan import Observer, FixedTarget
-from pytz import timezone
+import matplotlib.pyplot as plt
+import numpy as np
+from astroplan import FixedTarget, Observer
+from astropy.coordinates import AltAz, EarthLocation, SkyCoord
 from astropy.utils import iers
 from astropy.utils.iers import conf
-import matplotlib.pyplot as plt
 from omegaconf import OmegaConf
+from pytz import timezone
+from tqdm import tqdm
+
 
 def load_config(cfg_path):
     config = OmegaConf.load(cfg_path)
@@ -37,7 +39,7 @@ class Target(object):
         self.obs_time = obs_time  # observational time
         self.site = site
         self.fill_gap = fill_gap
-        self.sky_coord = SkyCoord(ra, dec)  # FixedTarget in astropy 
+        self.sky_coord = SkyCoord(ra, dec)  # FixedTarget in astropy
         self.fixed_target = FixedTarget(name=self.name, coord=self.sky_coord)  # FixedTarget in astroplan
 
     def get_az_el(self, current_time):
@@ -46,11 +48,11 @@ class Target(object):
         el = src_altaz.alt.degree
         az, el = PointModel(az, el)
         return az, el
-    
+
     def target_slew_time_to_this(self, target_src, at_time):
         az, el = target_src.get_az_el(at_time)
         return self.azel_slew_time_to_this(az, el, at_time)
-    
+
     def azel_slew_time_to_this(self, az_src, el_src, at_time):
         """
         To calculate the time needed for telescope transition from (az_src, el_src) to self at 'at_time'
@@ -104,7 +106,7 @@ class Target(object):
                 else:
                     dt = dt_buf
                 # count += 1
-            return float(format(dt, '.5f')) + t_stable    
+            return float(format(dt, '.5f')) + t_stable
 def PointModel(az, el):
     vpar = [-1.8535, -0.9027, -0.1154, 0.0354, -0.0703, -0.0069, -0.0074, -0.0231]
     az0 = np.deg2rad(az)
@@ -119,7 +121,7 @@ def PointModel(az, el):
 
     az1 = az + delt_az0
     el1 = el + delt_el0
-    
+
     return az1, el1
 
 def iers_init(cfg):
@@ -149,27 +151,27 @@ def load_targets(targets_data, site) -> list[Target]:
 def time_seconds(t):
     """
     将astropy.time转换为时间戳（秒为单位）。
-    
+
     Args:
         t: 包含时间信息的对象，该对象的value属性是一个形如'YYYY-MM-DD HH:MM:SS.sss'的字符串。
-    
+
     Returns:
         转换后的时间戳，单位为秒。
-    
+
     """
     return time.mktime(time.strptime(t.value.split(".")[0], "%Y-%m-%d %H:%M:%S"))
 #两个时间点之间的分钟数
 def minutes(start_time, end_time):
     """
     计算两个astropy.time.Time类型时间对象之间的分钟数差。
-    
+
     Args:
         start_time (astropy.time.Time): 起始时间对象
         end_time (astropy.time.Time): 结束时间对象
-    
+
     Returns:
         int: 起始时间与结束时间之间的分钟数差
-    
+
     """
     t00 = time.strptime(start_time.value, "%Y-%m-%d %H:%M:%S.%f")
     t11 = time.strptime(end_time.value, "%Y-%m-%d %H:%M:%S.%f")

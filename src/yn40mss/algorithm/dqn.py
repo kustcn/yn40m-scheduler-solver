@@ -1,39 +1,23 @@
+import logging
+import os
+import pickle
+import random
+import time
 from datetime import datetime, timedelta
+from typing import Dict, List, Optional, Set, Tuple
 
 import numpy as np
 import torch
-import torch.optim as optim
 import torch.nn.functional as F
-import random
-import os
-import time
-import pickle
-import logging
+import torch.optim as optim
 from astropy.time import Time
-from typing import List, Tuple, Optional, Dict, Set
 
-from ..core.utils import iers_init, get_obs_site, cal_avail_times, load_targets, minutes
+from ..core.utils import cal_avail_times, get_obs_site, iers_init, load_targets, minutes
 from .dqn_env import TelescopeEnv
 from .dqn_network import EnhancedAttentionNetwork
 
-"""
-v2: 在 v1(D3QN + 稀缺度插入 + LNS + post-hoc fill-gap)之上的三项改进
 
-1. 自适应多算子 LNS(Adaptive multi-operator LNS)
-   - 破坏算子从单一"随机移除"扩展为四种: random / worst_slew /
-     time_related / sky_related, 按成功率轮盘自适应选择
-   - 接受准则从"仅改进"放宽为阈值接受(threshold acceptance):
-     score = 1000*必排覆盖 + 总观测 - 0.5*总转向, 温度随预算衰减,
-     允许小幅劣化以跳出局部最优; 最终解仍按完整字典序 key 择优
-2. 多种子组合(portfolio)打磨: 候选池取 top-3 种子各跑短预算,
-   最优者再吃剩余预算, 替代 v1 的单种子全程打磨
-3. fill-gap 整合进 LNS: recreate 阶段在必排重排后即做 fill-gap
-   重复插入, 候选天然含填闲观测, key 的总观测项驱动 LNS 主动
-   压榨空闲时间(v1 只在 LNS 之后 post-hoc 填一次)
-"""
-
-
-# ====================== 智能体(与 v1 相同) ======================
+# ====================== 智能体 ======================
 class PrioritizedReplayBuffer:
     """优先经验回放缓冲区: 按 p^alpha 概率采样, 带重要性采样权重校正"""
 
